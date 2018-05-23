@@ -1,0 +1,17 @@
+double  o111, o112, o1113, o1114, o1125;
+double  o1126, o1137, o1116, o1119, t0;
+double  o121, o122, o1213, o1214, o1225;
+double  o1226, o1215, o1237, o1219, o137;
+double  o138, o1313, o1314, o1331, o1332;
+double  o1315, o1318, o1337, o211, o212;
+double  o2113, o2114, o2125, o2126, o2137;
+double  o214, o217, o221, o222, o2213;
+double  o2214, o2225, o2226, o223, o2237;
+double  o227, o237, o238, o2313, o2314;
+double  o2331, o2332, o231, o234, o2337;
+double  o311, o312, o3113, o314, o317;
+double  o3122, o3123, o3134, o3135, o321;
+double  o322, o323, o3213, o327, o3222;
+double  o3223, o3234, o3235, o337, o338;
+double  o331, o334, o3317, o3322, o3323;
+double  o3334, o3335;
