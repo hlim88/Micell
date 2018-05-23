@@ -1,0 +1,14 @@
+*.aux
+__pycache__/
+*.out
+*.o
+*.nab
+*.toc
+*.log
+*.bbl
+.DS_store
+.Ds_store
+.DS_Store
+*.snm
+*.blg
+*.synctex.gz

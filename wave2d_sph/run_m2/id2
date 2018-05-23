@@ -1,0 +1,29 @@
+# parameters for wave2d_sph, with azimuthal number m=2
+
+fout   := 1
+output := 0-*/8
+tag := "m2_"
+
+Nr0    := 64
+Nth0   := 32
+iter   := 1000
+lambda := 0.20
+
+rmin  := 2.0
+rmax  := 50.0
+thmin := 0.0
+thmax := 3.141592653589793
+
+m   := 2
+
+amp := 1.0
+r0  := 25.0
+th0 := 1.57
+delr  := 2.0
+delth := 1.0
+
+epsdis := 0.5
+epsiter := 1e-3
+in_file :=   "in2.sdf"
+out_file := "out2.sdf"
+level:=           2

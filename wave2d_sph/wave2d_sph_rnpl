@@ -1,0 +1,157 @@
+# RNPL program for solution of the wave equation, in axisymmetry, using
+# spherical polar coordinates.
+
+# Interior Crank-Nicholson scheme with O(h^2) centred spatial derivatives.
+#
+# Outgoing (r=rmax) boundary conditions based on approximate 1/r fall-off
+# Reflecting (Dirichlet) inner (r=rmin) boundary conditions
+# Regularity enforced on axis
+
+# Set working memory size
+system parameter int memsiz := 2000000
+
+# Coordinate domain
+parameter float rmin  := 2.0
+parameter float rmax  := 100.0
+parameter float thmin := 0.0
+parameter float thmax := 3.141592653589793
+
+# Initial data parameters --- a gaussian in r and 
+# theta (modulo on-axis regularity conditions)
+parameter float amp := 1.0
+parameter float r0  := 20.0
+parameter float th0 := 1.57
+parameter float delr  := 5.0
+parameter float delth := 0.3
+
+# The azimuthal dependence of the field (exp(i*m*phi))
+parameter int m := 0
+
+# Kreiss-Oliger dissipation parameter (set epsdis>=0 and <1)
+parameter float epsdis := 0.5
+
+polar coordinates t,r,th
+
+uniform polar grid g1 [1:Nr][1:Nth] {rmin:rmax}{thmin:thmax} 
+
+# The scalar field ph(r,theta,t)
+float ph on g1 at 0, 1 {out_gf := 1, out_gf[res] := 0}
+
+# Time derivative of above
+float pi on g1 at 0, 1 {out_gf := 1, out_gf[res] := 0}
+
+# Independent residual for the wave equation 
+float ires on g1 {out_gf := 1}
+
+# Crank-Nicholson time derivative
+operator DCN(f,t)  := (<1>f[0][0] - <0>f[0][0])/dt
+
+# Time averaging operator
+operator MU(f,t)    := (<1>f[0][0] + <0>f[0][0])/2
+
+# Time averaging operator for dissipation
+operator MUD(f,t)    := <0>f[0][0]
+
+# Operator to use advanced time level
+operator AD(f,t)    := (<1>f[0][0])
+
+# First and second spatial derivatives
+operator DP(f,r)      := (<0>f[1][0] - <0>f[0][0])/(dr)
+operator DM(f,r)      := (<0>f[0][0] - <0>f[-1][0])/(dr)
+operator MUM(f,r)     := (<0>f[0][0] + <0>f[-1][0])/(2)
+operator D0(f,r)      := MUM(DP(f,r),r)
+operator D0(f,r,r)    := DP(DM(f,r),r)
+operator D0C(f,r,r)   := DP(MUM(r^2,r)*DM(f,r),r)/r^2
+operator DM(f,th)     := (<0>f[0][0] - <0>f[0][-1])/(dth)
+operator MUM(f,th)    := (<0>f[0][0] + <0>f[0][-1])/(2)
+operator DP(f,th)     := (<0>f[0][1] - <0>f[0][0])/(dth)
+operator DM(f,th)     := (<0>f[0][0] - <0>f[0][-1])/(dth)
+operator D0(f,th)     := MUM(DP(f,th),th)
+operator D0(f,th,th)  := DP(DM(f,th),th)
+operator D0C(f,th,th) := DP(MUM(sin(th),th)*DM(f,th),th)/r^2/sin(th)
+
+# Kreiss-Oliger dissipation operators
+#
+# DISS   -- in theta and r
+# DISS_R -- in r only
+# DISS_T -- in theta only
+#
+operator DISS(f,t)   := -epsdis / (16*dt) * 
+    (dr^4  * DP(DP(DM(DM(f,r),r),r),r) +
+     dth^4 * DP(DP(DM(DM(f,th),th),th),th))
+
+operator DISS_R(f,t)  := -epsdis / (16*dt) * 
+     dr^4  * DP(DP(DM(DM(f,r),r),r),r)
+
+operator DISS_T(f,t)  := -epsdis / (16*dt) * 
+     dth^4 * DP(DP(DM(DM(f,th),th),th),th)
+
+
+# Backwards/forwards second-order first spatial derivatives 
+operator DB(f,r)    := ( 3*<0>f[0][0] - 4*<0>f[-1][0] + <0>f[-2][0])/(2*dr)
+operator DF(f,r)    := (-3*<0>f[0][0] + 4*<0>f[1][0] - <0>f[2][0])/(2*dr)
+operator DB(f,th)   := ( 3*<0>f[0][0] - 4*<0>f[0][-1] + <0>f[0][-2])/(2*dth)
+operator DF(f,th)   := (-3*<0>f[0][0] + 4*<0>f[0][1] - <0>f[0][2])/(2*dth)
+
+# Equations of motion, note that the preponderance of residual 
+# definitions are, as usual, for the treatment of boundary 
+# conditions.
+
+evaluate residual ph { 
+       [2:2][2:2]         := DCN(ph,t) =                       MU(pi,t);
+       [2:2][3:Nth-2]     := DCN(ph,t) = MUD(DISS_T(ph,t),t) + MU(pi,t);
+       [2:2][Nth-1:Nth-1] := DCN(ph,t) =                       MU(pi,t);
+
+    [3:Nr-2][2:2]         := DCN(ph,t) = MUD(DISS_R(ph,t),t) + MU(pi,t);
+    [3:Nr-2][3:Nth-2]     := DCN(ph,t) = MUD(DISS(ph,t),t)   + MU(pi,t);
+    [3:Nr-2][Nth-1:Nth-1] := DCN(ph,t) = MUD(DISS_R(ph,t),t) + MU(pi,t);
+
+ [Nr-1:Nr-1][2:2]         := DCN(ph,t) =                       MU(pi,t);
+ [Nr-1:Nr-1][3:Nth-2]     := DCN(ph,t) = MUD(DISS_T(ph,t),t) + MU(pi,t);
+ [Nr-1:Nr-1][Nth-1:Nth-1] := DCN(ph,t) =                       MU(pi,t);
+
+       [1:1][2:Nth-1]     := DCN(ph,t) = 0;
+
+     [Nr:Nr][2:Nth-1]     := DCN(ph,t) = MU(-DB(ph,r)-ph/r,t);
+
+      [1:Nr][1:1]         := if (m>0) then <1>ph[0][0]=0 else AD(DF(ph,th),t)=0;
+      [1:Nr][Nth:Nth]     := if (m>0) then <1>ph[0][0]=0 else AD(DB(ph,th),t)=0;
+}
+
+evaluate residual pi { 
+       [2:2][2:2]         := DCN(pi,t) =                       MU(D0C(ph,r,r) + D0C(ph,th,th) - m^2*ph/(r^2*sin(th)^2),t);
+       [2:2][3:Nth-2]     := DCN(pi,t) = MUD(DISS_T(pi,t),t) + MU(D0C(ph,r,r) + D0C(ph,th,th) - m^2*ph/(r^2*sin(th)^2),t);
+       [2:2][Nth-1:Nth-1] := DCN(pi,t) =                       MU(D0C(ph,r,r) + D0C(ph,th,th) - m^2*ph/(r^2*sin(th)^2),t);
+
+    [3:Nr-2][2:2]         := DCN(pi,t) = MUD(DISS_R(pi,t),t) + MU(D0C(ph,r,r) + D0C(ph,th,th) - m^2*ph/(r^2*sin(th)^2),t);
+    [3:Nr-2][3:Nth-2]     := DCN(pi,t) = MUD(DISS(pi,t),t) +   MU(D0C(ph,r,r) + D0C(ph,th,th) - m^2*ph/(r^2*sin(th)^2),t);
+   [ 3:Nr-2][Nth-1:Nth-1] := DCN(pi,t) = MUD(DISS_R(pi,t),t) + MU(D0C(ph,r,r) + D0C(ph,th,th) - m^2*ph/(r^2*sin(th)^2),t);
+
+ [Nr-1:Nr-1][2:2]         := DCN(pi,t) =                       MU(D0C(ph,r,r) + D0C(ph,th,th) - m^2*ph/(r^2*sin(th)^2),t);
+ [Nr-1:Nr-1][3:Nth-2]     := DCN(pi,t) = MUD(DISS_T(pi,t),t) + MU(D0C(ph,r,r) + D0C(ph,th,th) - m^2*ph/(r^2*sin(th)^2),t);
+ [Nr-1:Nr-1][Nth-1:Nth-1] := DCN(pi,t) =                       MU(D0C(ph,r,r) + D0C(ph,th,th) - m^2*ph/(r^2*sin(th)^2),t);
+
+     [Nr:Nr][2:Nth-1]     := DCN(pi,t) = MU(-DB(pi,r)-pi/r,t);
+
+       [1:1][1:Nth]       := DCN(pi,t)=0;
+      [1:Nr][1:1]         := if (m>0) then <1>pi[0][0]=0 else AD(DF(pi,th),t)=0;
+      [1:Nr][Nth:Nth]     := if (m>0) then <1>pi[0][0]=0 else AD(DB(pi,th),t)=0;
+}
+
+residual ires { 
+   [2:Nr-1][2:Nth-2] := ires = - DCN(pi,t) + MU( D0(ph,r,r) + 2*D0(ph,r)/r + D0(ph,th,th)/r^2 +
+                                                 D0(ph,th)*cos(th)/(sin(th)*r^2)
+                                               - m^2*ph/(sin(th)^2*r^2),t);
+}
+
+initialize ph { 
+   [1:Nr][1:Nth]  := amp * exp(-(r - r0)^2/delr^2) * sin(th)^m*exp(-(th - th0)^2/delth^2);
+}
+
+initialize pi { 
+   [1:Nr][1:Nth]  := 0;
+}
+
+looper iterative
+
+auto update ph, pi, ires
